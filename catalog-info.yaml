@@ -1,0 +1,24 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: catalog-cleanup-plugin
+  description: |
+    A Backstage plugin to manage and cleanup catalog locations with a friendly UI
+  links:
+    - title: Repository
+      url: https://github.com/Ruivalim/catalog-cleanup
+    - title: npm
+      url: https://www.npmjs.com/package/@ruivalim/catalog-cleanup
+  annotations:
+    github.com/project-slug: Ruivalim/catalog-cleanup
+  tags:
+    - backstage
+    - catalog
+    - cleanup
+    - locations
+    - plugin
+    - frontend
+spec:
+  type: library
+  owner: ruivalim
+  lifecycle: experimental
