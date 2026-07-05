@@ -6,8 +6,8 @@ export interface Location {
   target: string;
 }
 
-export interface LocationsResponse {
-  locations: Location[];
+export interface LocationWrapper {
+  data: Location;
 }
 
 export class CatalogClient {
@@ -27,8 +27,8 @@ export class CatalogClient {
       throw new Error(`Failed to fetch locations: ${response.statusText}`);
     }
 
-    const data = (await response.json()) as LocationsResponse;
-    return data.locations || [];
+    const data = (await response.json()) as LocationWrapper[];
+    return data.map(wrapper => wrapper.data);
   }
 
   async deleteLocation(id: string): Promise<void> {

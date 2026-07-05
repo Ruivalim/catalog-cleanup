@@ -1,15 +1,17 @@
 {
   "name": "@ruivalim/catalog-cleanup",
-  "version": "0.1.0",
+  "version": "0.1.6",
   "description": "A Backstage plugin to manage and cleanup catalog locations",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
+  "main": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
+  "license": "Apache-2.0",
   "private": false,
   "publishConfig": {
     "access": "public",
     "main": "dist/index.esm.js",
     "types": "dist/index.d.ts"
   },
+  "sideEffects": false,
   "backstage": {
     "role": "frontend-plugin",
     "pluginId": "catalog-cleanup",
@@ -24,7 +26,8 @@
   },
   "scripts": {
     "start": "backstage-cli package start",
-    "build": "backstage-cli package build",
+    "build": "yarn run tsc:generate-types && backstage-cli package build",
+    "tsc:generate-types": "node -e \"const ts = require('typescript'); const config = require('./tsconfig.json'); const program = ts.createProgram(['src/index.ts'], {...config.compilerOptions, declaration: true, emitDeclarationOnly: true, outDir: 'dist-types', rootDir: '.', skipLibCheck: true}); program.emit();\"",
     "lint": "backstage-cli package lint",
     "test": "backstage-cli package test",
     "clean": "backstage-cli package clean",
@@ -40,11 +43,12 @@
     "frontend"
   ],
   "author": "Rui Valim",
-  "license": "Apache-2.0",
   "dependencies": {
     "@backstage/core-components": "^0.15.1",
     "@backstage/core-plugin-api": "^1.10.1",
     "@backstage/plugin-catalog-react": "^1.14.0",
+    "@backstage/plugin-permission-common": "^0.9.3",
+    "@backstage/plugin-permission-react": "^0.4.39",
     "@material-ui/core": "^4.12.4",
     "@material-ui/icons": "^4.11.3",
     "@material-ui/lab": "^4.0.0-alpha.61",
@@ -83,5 +87,6 @@
   "bugs": {
     "url": "https://github.com/Ruivalim/catalog-cleanup/issues"
   },
-  "homepage": "https://github.com/Ruivalim/catalog-cleanup#readme"
+  "homepage": "https://github.com/Ruivalim/catalog-cleanup#readme",
+  "module": "./dist/index.esm.js"
 }
