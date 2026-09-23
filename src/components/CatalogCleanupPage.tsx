@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useAsync } from 'react-use';
+import { useState } from 'react';
+import useAsyncRetry from 'react-use/esm/useAsyncRetry';
 import {
   Table,
   TableColumn,
@@ -18,53 +18,58 @@ import {
   DialogActions,
   DialogContentText,
 } from '@material-ui/core';
+import Alert from '@material-ui/lab/Alert';
 import DeleteIcon from '@material-ui/icons/Delete';
 import RefreshIcon from '@material-ui/icons/Refresh';
-import { useApi, discoveryApiRef, fetchApiRef } from '@backstage/core-plugin-api';
-import { CatalogClient, Location } from '../api';
+import { alertApiRef, useApi } from '@backstage/core-plugin-api';
+import { catalogApiRef } from '@backstage/plugin-catalog-react';
+import { catalogLocationDeletePermission } from '@backstage/plugin-catalog-common/alpha';
+import { usePermission } from '@backstage/plugin-permission-react';
+import type { Location } from '@backstage/catalog-client';
 
 export const CatalogCleanupPage = () => {
-  const discoveryApi = useApi(discoveryApiRef);
-  const fetchApi = useApi(fetchApiRef);
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const catalogApi = useApi(catalogApiRef);
+  const alertApi = useApi(alertApiRef);
+  const { allowed: canDelete } = usePermission({
+    permission: catalogLocationDeletePermission,
+  });
   const [locationToDelete, setLocationToDelete] = useState<Location | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<Error | null>(null);
 
-  const catalogClient = new CatalogClient({ discoveryApi, fetchApi });
-
-  const { value: locations, loading, error } = useAsync(async () => {
-    return catalogClient.getLocations();
-  }, [refreshKey]);
-
-  const handleRefresh = () => {
-    setRefreshKey(prev => prev + 1);
-  };
-
-  const handleDeleteClick = (location: Location) => {
-    setLocationToDelete(location);
-    setDeleteDialogOpen(true);
-  };
+  const {
+    value: locations,
+    loading,
+    error,
+    retry,
+  } = useAsyncRetry(async () => (await catalogApi.getLocations()).items, [catalogApi]);
 
   const handleDeleteConfirm = async () => {
     if (!locationToDelete) return;
 
     setIsDeleting(true);
+    setDeleteError(null);
     try {
-      await catalogClient.deleteLocation(locationToDelete.id);
-      setDeleteDialogOpen(false);
+      await catalogApi.removeLocationById(locationToDelete.id);
+      alertApi.post({
+        // The target is usually a long URL that overflows the snackbar
+        message: 'Location deleted',
+        severity: 'success',
+        display: 'transient',
+      });
       setLocationToDelete(null);
-      handleRefresh();
+      retry();
     } catch (err) {
-      console.error('Failed to delete location:', err);
+      // Keep the dialog open so the user sees why it failed
+      setDeleteError(err as Error);
     } finally {
       setIsDeleting(false);
     }
   };
 
   const handleDeleteCancel = () => {
-    setDeleteDialogOpen(false);
     setLocationToDelete(null);
+    setDeleteError(null);
   };
 
   const columns: TableColumn<Location>[] = [
@@ -87,20 +92,27 @@ export const CatalogCleanupPage = () => {
       title: 'Actions',
       width: '10%',
       render: (row: Location) => (
-        <Tooltip title="Delete location">
-          <IconButton
-            size="small"
-            color="secondary"
-            onClick={() => handleDeleteClick(row)}
-          >
-            <DeleteIcon />
-          </IconButton>
+        <Tooltip title={canDelete ? 'Delete location' : 'You are not allowed to delete locations'}>
+          <span>
+            <IconButton
+              size="small"
+              color="secondary"
+              aria-label={`Delete location ${row.target}`}
+              disabled={!canDelete}
+              onClick={() => {
+                setDeleteError(null);
+                setLocationToDelete(row);
+              }}
+            >
+              <DeleteIcon />
+            </IconButton>
+          </span>
         </Tooltip>
       ),
     },
   ];
 
-  if (loading) {
+  if (loading && !locations) {
     return <Progress />;
   }
 
@@ -116,7 +128,7 @@ export const CatalogCleanupPage = () => {
           variant="contained"
           color="primary"
           startIcon={<RefreshIcon />}
-          onClick={handleRefresh}
+          onClick={retry}
         >
           Refresh
         </Button>
@@ -131,17 +143,15 @@ export const CatalogCleanupPage = () => {
         title="Locations"
         options={{ paging: true, pageSize: 20, search: true }}
         columns={columns}
-        data={locations || []}
+        data={locations ?? []}
       />
 
-      <Dialog
-        open={deleteDialogOpen}
-        onClose={handleDeleteCancel}
-      >
+      <Dialog open={locationToDelete !== null} onClose={handleDeleteCancel}>
         <DialogTitle>Confirm Delete</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to delete this location?
+            Are you sure you want to delete this location? Entities that only came
+            from it will be orphaned.
             <br />
             <br />
             <strong>ID:</strong> {locationToDelete?.id}
@@ -150,6 +160,11 @@ export const CatalogCleanupPage = () => {
             <br />
             <strong>Target:</strong> {locationToDelete?.target}
           </DialogContentText>
+          {deleteError && (
+            <Alert severity="error">
+              Failed to delete location: {deleteError.message}
+            </Alert>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleDeleteCancel} disabled={isDeleting}>
@@ -159,7 +174,6 @@ export const CatalogCleanupPage = () => {
             onClick={handleDeleteConfirm}
             color="secondary"
             disabled={isDeleting}
-            autoFocus
           >
             {isDeleting ? 'Deleting...' : 'Delete'}
           </Button>

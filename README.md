@@ -1,277 +1,105 @@
-# Catalog Cleanup Plugin
+# Catalog Cleanup for Backstage
 
-<div align="center">
-
-[![npm version](https://badge.fury.io/js/%40ruivalim%2Fcatalog-cleanup.svg)](https://www.npmjs.com/package/@ruivalim/catalog-cleanup)
+[![npm version](https://img.shields.io/npm/v/@ruivalim/catalog-cleanup)](https://www.npmjs.com/package/@ruivalim/catalog-cleanup)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-Um plugin do Backstage para gerenciar e limpar locations do catálogo com uma UI amigável.
+A Backstage frontend plugin to list and delete the locations registered in the software catalog.
 
-</div>
+![Catalog Cleanup page](docs/catalog-cleanup.png)
 
----
+## The problem
 
-## 🎯 O Problema
+You register a component and Backstage answers that the location already exists. You search the catalog UI and find nothing.
 
-Sabe quando você tenta criar uma entidade no catálogo do Backstage e recebe um erro dizendo que ela já existe, mas quando você procura na UI... **não encontra nada**?
-
-Isso acontece porque a **location ainda existe na API** do catálogo mesmo que a entidade não esteja mais visível na interface.
-
-### Exemplo Real:
+The location is still registered in the catalog API even though no entity from it shows up in the UI. Until now the fix was to do it by hand:
 
 ```bash
-# Você tenta criar um serviço
-❌ Error: Location already exists for "nome-do-servico-teste-2-ms"
-
-# Você busca na UI do Backstage
-🔍 "nome-do-servico-teste-2-ms" ... Nenhum resultado encontrado
-
-# WTF? 🤯
+curl -s https://backstage.example.com/api/catalog/locations | jq
+# ...find the id in a wall of JSON...
+curl -X DELETE https://backstage.example.com/api/catalog/locations/507d46dd-ac5e-4152-8a4c-37eb8dfe3fcf
 ```
 
-**Antes deste plugin**, você tinha que fazer isso manualmente:
+This plugin gives you a page with every registered location, search, and a delete button with confirmation.
+
+## Installation
 
 ```bash
-# Listar locations
-curl -s "https://backstage.yourcompany.com/api/catalog/locations" | jq
-
-# Encontrar o ID da location órfã
-# ...muito JSON pra ler...
-
-# Deletar manualmente
-curl -X DELETE "https://backstage.yourcompany.com/api/catalog/locations/507d46dd-ac5e-4152-8a4c-37eb8dfe3fcf"
+yarn --cwd packages/app add @ruivalim/catalog-cleanup
 ```
 
-**Com este plugin**, você faz isso em 3 cliques na UI! 🎉
+### New frontend system
 
----
+If your app uses `createApp` from `@backstage/frontend-defaults` (what `@backstage/create-app` generates today) and has `app.packages: all` in `app-config.yaml`, installing the package is enough. The page is discovered automatically at `/catalog-cleanup` and gets an entry in the sidebar.
 
-## ✨ Funcionalidades
+Without package discovery, add the plugin to your features:
 
-- 📋 **Listagem completa** de todas as catalog locations
-- 🔍 **Busca e filtração** rápida de locations
-- 🗑️ **Delete com confirmação** para evitar acidentes
-- 🔄 **Auto-refresh** após deletar uma location
-- 📄 **Paginação** para lidar com muitas locations
-- 🎨 **UI consistente** com o design do Backstage
+```tsx
+import catalogCleanupPlugin from '@ruivalim/catalog-cleanup/alpha';
 
----
-
-## 📦 Instalação
-
-### 1. Instalar o pacote
-
-```bash
-# No diretório raiz do seu Backstage
-yarn add --cwd packages/app @ruivalim/catalog-cleanup
+export default createApp({
+  features: [catalogCleanupPlugin /* , ...other features */],
+});
 ```
 
-### 2. Adicionar o plugin ao app
+The path can be changed in `app-config.yaml`:
 
-Edite `packages/app/src/App.tsx`:
+```yaml
+app:
+  extensions:
+    - page:catalog-cleanup:
+        config:
+          path: /admin/catalog-cleanup
+```
+
+### Legacy frontend system
+
+Add the route in `packages/app/src/App.tsx`:
 
 ```tsx
 import { CatalogCleanupPage } from '@ruivalim/catalog-cleanup';
 
-// ...
-
-export default app.createRoot(
-  <>
-    <AlertDisplay />
-    <OAuthRequestDialog />
-    <AppRouter>
-      <Root>
-        {/* ... outras rotas ... */}
-
-        {/* 👇 Adicione esta linha */}
-        <Route path="/catalog-cleanup" element={<CatalogCleanupPage />} />
-
-      </Root>
-    </AppRouter>
-  </>,
-);
+// inside <FlatRoutes>
+<Route path="/catalog-cleanup" element={<CatalogCleanupPage />} />
 ```
 
-### 3. (Opcional) Adicionar ao menu de navegação
-
-Edite `packages/app/src/components/Root/Root.tsx`:
+And optionally a sidebar item in `packages/app/src/components/Root/Root.tsx`:
 
 ```tsx
-// Adicione o import do ícone
-import CleaningServicesIcon from '@material-ui/icons/CleaningServices';
+import DeleteSweepIcon from '@material-ui/icons/DeleteSweep';
 
-// ...
-
-export const Root = ({ children }: PropsWithChildren<{}>) => (
-  <SidebarPage>
-    <Sidebar>
-      <SidebarGroup label="Menu" icon={<MenuIcon />}>
-        {/* ... outros itens ... */}
-
-        {/* 👇 Adicione este item */}
-        <SidebarItem
-          icon={CleaningServicesIcon}
-          to="catalog-cleanup"
-          text="Catalog Cleanup"
-        />
-
-      </SidebarGroup>
-    </Sidebar>
-    {children}
-  </SidebarPage>
-);
+<SidebarItem icon={DeleteSweepIcon} to="catalog-cleanup" text="Catalog Cleanup" />
 ```
 
----
+## Permissions
 
-## 🚀 Como Usar
+The page talks to the catalog through the standard `CatalogApi`, so the catalog backend enforces its own permissions:
 
-### 1. Acesse o plugin
+- `catalog.location.read` to list locations;
+- `catalog.location.delete` to delete them. Without it the delete buttons are disabled.
 
-Navegue para `/catalog-cleanup` no seu Backstage ou clique no menu lateral.
+Deleting a location orphans the entities that came only from it. With the default `catalog.orphanStrategy: delete` the catalog then removes them; with `keep` they stay, marked as orphans.
 
-### 2. Encontre a location órfã
+> The `catalogCleanupViewPermission` and `catalogCleanupDeletePermission` exports are deprecated. They were never checked by anything. Use the catalog permissions above in your policy instead.
 
-Use a busca para encontrar a location problemática:
+## Requirements
 
-![Search for location](https://via.placeholder.com/800x200.png?text=Busque+pela+location)
+- Tested on Backstage 1.55
+- React 17 or 18
 
-### 3. Delete a location
-
-Clique no ícone de lixeira e confirme:
-
-![Delete confirmation](https://via.placeholder.com/600x300.png?text=Confirmação+de+delete)
-
-### 4. Pronto!
-
-A lista será atualizada automaticamente. Agora você pode criar sua entidade sem erros! 🎉
-
----
-
-## 🔧 Desenvolvimento
-
-Se você quiser contribuir ou rodar localmente:
+## Development
 
 ```bash
-# Instalar dependências
 yarn install
-
-# Build
-yarn build
-
-# Lint
+yarn tsc
 yarn lint
-
-# Testes (quando implementados)
 yarn test
-
-# Clean build artifacts
-yarn clean
+yarn build
 ```
 
-### Estrutura do Projeto
+## License
 
-```
-catalog-cleanup/
-├── src/
-│   ├── api/
-│   │   ├── CatalogClient.ts       # Cliente da API do catálogo
-│   │   └── index.ts
-│   ├── components/
-│   │   ├── CatalogCleanupPage.tsx # Componente principal da UI
-│   │   └── index.ts
-│   ├── plugin.ts                  # Definição do plugin
-│   ├── routes.ts                  # Rotas do plugin
-│   └── index.ts                   # Entry point
-├── dist/                          # Build output
-├── package.json
-└── README.md
-```
+Apache-2.0
 
----
+## Author
 
-## 🔌 API Utilizada
-
-O plugin utiliza os endpoints nativos do Backstage Catalog API:
-
-| Endpoint | Método | Descrição |
-|----------|--------|-----------|
-| `/api/catalog/locations` | `GET` | Lista todas as locations |
-| `/api/catalog/locations/{id}` | `DELETE` | Deleta uma location específica |
-
----
-
-## 🔒 Permissões
-
-O plugin requer que o usuário tenha permissões para:
-- ✅ Listar locations do catálogo
-- ✅ Deletar locations do catálogo
-
-Essas permissões são controladas pelo sistema de permissões do Backstage (RBAC).
-
----
-
-## 📝 Roadmap
-
-- [ ] Adicionar confirmação dupla para deletar múltiplas locations
-- [ ] Exportar lista de locations para CSV
-- [ ] Mostrar entidades associadas a cada location
-- [ ] Filtros avançados (por tipo, target, etc.)
-- [ ] Histórico de locations deletadas
-- [ ] Bulk delete de locations
-
----
-
-## 🤝 Contribuindo
-
-Contribuições são muito bem-vindas!
-
-1. Fork o projeto
-2. Crie uma branch para sua feature (`git checkout -b feature/MinhaFeature`)
-3. Commit suas mudanças (`git commit -m 'Add: Minha nova feature'`)
-4. Push para a branch (`git push origin feature/MinhaFeature`)
-5. Abra um Pull Request
-
----
-
-## 🐛 Reportar Bugs
-
-Encontrou um bug? [Abra uma issue](https://github.com/Ruivalim/catalog-cleanup/issues) com:
-
-- Descrição do problema
-- Passos para reproduzir
-- Comportamento esperado vs atual
-- Screenshots (se aplicável)
-- Versão do Backstage e do plugin
-
----
-
-## 📄 Licença
-
-Este projeto está sob a licença Apache 2.0 - veja o arquivo [LICENSE](LICENSE) para detalhes.
-
----
-
-## 👤 Autor
-
-**Rui Valim**
-
-- GitHub: [@Ruivalim](https://github.com/Ruivalim)
-- NPM: [@ruivalim](https://www.npmjs.com/~ruivalim)
-
----
-
-## 🙏 Agradecimentos
-
-- [Backstage](https://backstage.io) - Por criar uma plataforma incrível
-- Comunidade Backstage - Por toda a ajuda e inspiração
-
----
-
-<div align="center">
-
-**Se este plugin te ajudou, deixe uma ⭐ no repositório!**
-
-Made with ❤️ by [Rui Valim](https://github.com/Ruivalim)
-
-</div>
+[Rui Valim](https://github.com/Ruivalim)

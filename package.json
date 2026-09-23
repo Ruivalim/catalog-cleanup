@@ -1,9 +1,9 @@
 {
   "name": "@ruivalim/catalog-cleanup",
-  "version": "0.1.6",
+  "version": "0.2.0",
   "description": "A Backstage plugin to manage and cleanup catalog locations",
-  "main": "dist/index.esm.js",
-  "types": "dist/index.d.ts",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
   "license": "Apache-2.0",
   "private": false,
   "publishConfig": {
@@ -26,13 +26,13 @@
   },
   "scripts": {
     "start": "backstage-cli package start",
-    "build": "yarn run tsc:generate-types && backstage-cli package build",
-    "tsc:generate-types": "node -e \"const ts = require('typescript'); const config = require('./tsconfig.json'); const program = ts.createProgram(['src/index.ts'], {...config.compilerOptions, declaration: true, emitDeclarationOnly: true, outDir: 'dist-types', rootDir: '.', skipLibCheck: true}); program.emit();\"",
+    "build": "backstage-cli package build",
     "lint": "backstage-cli package lint",
     "test": "backstage-cli package test",
     "clean": "backstage-cli package clean",
     "prepack": "backstage-cli package prepack",
-    "postpack": "backstage-cli package postpack"
+    "postpack": "backstage-cli package postpack",
+    "tsc": "tsc"
   },
   "keywords": [
     "backstage",
@@ -44,49 +44,67 @@
   ],
   "author": "Rui Valim",
   "dependencies": {
-    "@backstage/core-components": "^0.15.1",
-    "@backstage/core-plugin-api": "^1.10.1",
-    "@backstage/plugin-catalog-react": "^1.14.0",
-    "@backstage/plugin-permission-common": "^0.9.3",
-    "@backstage/plugin-permission-react": "^0.4.39",
+    "@backstage/catalog-client": "^1.16.2",
+    "@backstage/core-components": "^0.18.14",
+    "@backstage/core-plugin-api": "^1.12.10",
+    "@backstage/frontend-plugin-api": "^0.18.1",
+    "@backstage/plugin-catalog-common": "^1.2.0",
+    "@backstage/plugin-catalog-react": "^3.2.3",
+    "@backstage/plugin-permission-common": "^0.9.11",
+    "@backstage/plugin-permission-react": "^0.5.5",
     "@material-ui/core": "^4.12.4",
     "@material-ui/icons": "^4.11.3",
     "@material-ui/lab": "^4.0.0-alpha.61",
     "react-use": "^17.5.1"
   },
   "peerDependencies": {
-    "react": "^16.13.1 || ^17.0.0 || ^18.0.0"
+    "react": "^17.0.0 || ^18.0.0",
+    "react-dom": "^17.0.0 || ^18.0.0",
+    "react-router-dom": "^6.3.0"
   },
   "files": [
     "dist"
   ],
   "devDependencies": {
-    "@backstage/cli": "^0.27.0",
-    "@backstage/core-app-api": "^1.16.0",
-    "@backstage/dev-utils": "^1.1.8",
-    "@backstage/test-utils": "^1.7.1",
-    "@spotify/eslint-config-base": "^15.0.0",
-    "@spotify/eslint-config-react": "^15.0.0",
-    "@spotify/eslint-config-typescript": "^15.0.0",
-    "@testing-library/jest-dom": "^6.6.3",
+    "@backstage/cli": "^0.36.6",
+    "@backstage/cli-defaults": "^0.1.6",
+    "@backstage/test-utils": "^1.7.22",
+    "@jest/environment-jsdom-abstract": "~30.2.0",
+    "@testing-library/dom": "^9.3.4",
+    "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^14.3.1",
-    "@types/node": "^22.10.0",
-    "@types/react": "^19.2.7",
-    "@typescript-eslint/eslint-plugin": "^5.0.0",
-    "@typescript-eslint/parser": "^5.0.0",
-    "eslint": "^8.57.0",
-    "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-import": "^2.32.0",
-    "eslint-plugin-jest": "^29.11.2",
-    "eslint-plugin-jsx-a11y": "^6.0.0",
-    "eslint-plugin-react": "^7.7.0",
-    "eslint-plugin-react-hooks": "^4.0.0",
-    "react": "^18.0.0",
-    "typescript": "~5.3.0"
+    "@testing-library/user-event": "^14.6.7",
+    "@types/jest": "^30.0.0",
+    "@types/react": "^18.3.0",
+    "jest": "~30.2.0",
+    "jsdom": "^27.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.30.2",
+    "swr": "^2.0.0",
+    "typescript": "~5.8.0"
   },
   "bugs": {
     "url": "https://github.com/Ruivalim/catalog-cleanup/issues"
   },
   "homepage": "https://github.com/Ruivalim/catalog-cleanup#readme",
-  "module": "./dist/index.esm.js"
+  "exports": {
+    ".": "./src/index.ts",
+    "./alpha": "./src/alpha.tsx",
+    "./package.json": "./package.json"
+  },
+  "typesVersions": {
+    "*": {
+      "alpha": [
+        "src/alpha.tsx"
+      ],
+      "package.json": [
+        "package.json"
+      ]
+    }
+  },
+  "engines": {
+    "node": "22 || 24"
+  },
+  "packageManager": "yarn@1.22.22"
 }
