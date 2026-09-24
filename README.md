@@ -103,3 +103,11 @@ Apache-2.0
 ## Author
 
 [Rui Valim](https://github.com/Ruivalim)
+
+## Releasing
+
+Releases are automated. Commits follow [Conventional Commits](https://www.conventionalcommits.org): `fix:` and `feat:` go into the next release, `feat!:` or a `BREAKING CHANGE:` footer marks a breaking one.
+
+[release-please](https://github.com/googleapis/release-please) keeps a release PR open with the next version and changelog. Merging it tags the release and publishes it to npm with provenance, through npm trusted publishing.
+
+Dependencies are kept up to date by [Renovate](https://docs.renovatebot.com): stable patch and minor updates merge on their own once CI passes, Backstage packages come grouped in one PR for review.
