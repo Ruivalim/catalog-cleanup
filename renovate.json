@@ -38,6 +38,16 @@
         "@backstage/**"
       ],
       "groupName": "backstage"
+    },
+    {
+      "description": "Backstage still builds on MUI v4, so swapping @material-ui for @mui needs a real code migration, not a dependency bump.",
+      "matchPackageNames": [
+        "@material-ui/**"
+      ],
+      "matchUpdateTypes": [
+        "replacement"
+      ],
+      "enabled": false
     }
   ]
 }
